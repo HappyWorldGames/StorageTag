@@ -78,6 +78,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Инициализация голосового ввода
     initVoiceRecognition();
 
+    // Инициализация Эксопрта и Импорта
+    initExportImport();
+
     // Обработчики событий
     document.getElementById('manual-search').addEventListener('click', () => {
         const id = document.getElementById('shelf-id-input').value;

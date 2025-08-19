@@ -62,10 +62,77 @@
         <button id="delete-item" style="background: #f44336;">Удалить запись</button>
     </section>
 
+    <!-- Секция экспорта/импорта -->
+    <section class="export-import-section">
+        <h2>Экспорт и импорт данных</h2>
+        <p>Экспортируйте данные для передачи через мессенджеры или импортируйте полученные данные</p>
+
+        <div class="controls">
+            <button id="export-data">Экспортировать данные</button>
+            <button id="import-data">Импортировать данные</button>
+            <input type="file" id="import-file" accept=".json,application/json" class="hidden">
+        </div>
+
+        <div id="export-result" class="hidden">
+            <h3>Данные для передачи</h3>
+            <div class="data-preview" id="export-preview"></div>
+
+            <div class="share-buttons">
+                <button class="share-button" id="copy-json">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z" fill="currentColor"/>
+                    </svg>
+                    Копировать
+                </button>
+
+                <button class="share-button" id="share-as-file">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 16.08C17.24 16.08 16.56 16.38 16.04 16.85L8.91 12.7C8.96 12.47 9 12.24 9 12C9 11.76 8.96 11.53 8.91 11.3L15.96 7.19C16.5 7.69 17.21 8 18 8C19.66 8 21 6.66 21 5C21 3.34 19.66 2 18 2C16.34 2 15 3.34 15 5C15 5.24 15.04 5.47 15.09 5.7L8.04 9.81C7.5 9.31 6.79 9 6 9C4.34 9 3 10.34 3 12C3 13.66 4.34 15 6 15C6.79 15 7.5 14.69 8.04 14.19L15.16 18.35C15.11 18.56 15.08 18.78 15.08 19C15.08 20.61 16.39 21.92 18 21.92C19.61 21.92 20.92 20.61 20.92 19C20.92 17.39 19.61 16.08 18 16.08Z" fill="currentColor"/>
+                    </svg>
+                    Скачать файл
+                </button>
+
+                <button class="share-button" id="generate-qr-share">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 11H11V3H3V11ZM5 5H9V9H5V5Z" fill="currentColor"/>
+                        <path d="M3 21H11V13H3V21ZM5 15H9V19H5V15Z" fill="currentColor"/>
+                        <path d="M13 3V11H21V3H13ZM19 9H15V5H19V9Z" fill="currentColor"/>
+                        <path d="M19 19H17V17H19V19Z" fill="currentColor"/>
+                        <path d="M13 13H15V15H13V13Z" fill="currentColor"/>
+                        <path d="M15 15H17V17H15V15Z" fill="currentColor"/>
+                        <path d="M13 17H15V19H13V17Z" fill="currentColor"/>
+                        <path d="M17 13H19V15H17V13Z" fill="currentColor"/>
+                        <path d="M19 15H21V17H19V15Z" fill="currentColor"/>
+                        <path d="M17 17H19V19H17V17Z" fill="currentColor"/>
+                    </svg>
+                    Показать QR-код
+                </button>
+            </div>
+        </div>
+
+        <div id="import-result" class="hidden">
+            <h3>Предпросмотр импортируемых данных</h3>
+            <div class="data-preview" id="import-preview"></div>
+            <p>Найдено записей: <span id="import-count">0</span></p>
+            <div class="controls">
+                <button id="confirm-import">Импортировать данные</button>
+                <button id="cancel-import" style="background: #f44336;">Отмена</button>
+            </div>
+        </div>
+
+        <div id="qr-container" class="hidden" style="text-align: center; margin: 15px 0;">
+            <canvas id="qr-canvas"></canvas>
+            <p>Отсканируйте этот QR-код на другом устройстве</p>
+            <button id="close-qr">Закрыть</button>
+        </div>
+    </section>
+
     <script src="lib/jsQR.min.js"></script>
+    <script src="lib/jsQRGen.js"></script>
     <script src="js/db.js"></script>
     <script src="js/scanner.js"></script>
     <script src="js/voice.js"></script>
+    <script src="js/exportImport.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

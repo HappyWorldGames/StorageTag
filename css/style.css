@@ -103,3 +103,42 @@ input, textarea {
     50% { opacity: 0.5; }
     100% { opacity: 1; }
 }
+
+.export-import-section {
+    background: #e3f2fd;
+    border-left: 4px solid #2196f3;
+}
+
+.data-preview {
+    max-height: 200px;
+    overflow-y: auto;
+    background: #f9f9f9;
+    padding: 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 12px;
+    margin: 10px 0;
+    border: 1px dashed #ccc;
+}
+
+.share-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 10px 0;
+}
+
+.share-button {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 12px;
+    border-radius: 5px;
+    background: #ff2727;
+    border: 1px solid #ddd;
+    cursor: pointer;
+}
+
+.share-button:hover {
+    background: #e0e0e0;
+}
