@@ -1,12 +1,6 @@
 // Глобальные переменные
 let currentItemId = null;
 
-// Проверка HTTPS
-if (location.protocol !== 'https:' && !location.hostname.includes('localhost')) {
-    alert("Для работы приложения требуется HTTPS! Перенаправляем...");
-    location.replace(`https://${location.host}${location.pathname}`);
-}
-
 // Отображение данных
 const loadItem = async (id) => {
     try {
@@ -78,12 +72,13 @@ window.addEventListener('DOMContentLoaded', async () => {
         alert("Ошибка базы данных: " + e);
     }
 
+    // Инициализация сканера
+    initScanner();
+
     // Инициализация голосового ввода
     initVoiceRecognition();
 
     // Обработчики событий
-    document.getElementById('start-scan').addEventListener('click', startScanner);
-    document.getElementById('stop-scan').addEventListener('click', stopScanner);
     document.getElementById('manual-search').addEventListener('click', () => {
         const id = document.getElementById('shelf-id-input').value;
         if (id) loadItem(id);

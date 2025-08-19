@@ -2,10 +2,22 @@
 let scannerActive = false;
 let cameraStream = null;
 
+const initScanner = () => {
+    scanButton = document.getElementById('toggle-scan');
+    scanButton.addEventListener('click', toggleScanner);
+};
+
+const toggleScanner = async () => {
+    if (scannerActive) {
+        stopScanner();
+    } else {
+        await startScanner();
+    }
+};
+
 const startScanner = async () => {
     const video = document.getElementById('camera-preview');
     video.classList.remove('hidden');
-    document.getElementById('scan-controls').classList.remove('hidden');
 
     try {
         // Пробуем заднюю камеру, если не получится - любую доступную
@@ -25,6 +37,7 @@ const startScanner = async () => {
         video.onloadedmetadata = () => video.play();
 
         scannerActive = true;
+        updateScanButton();
         scanBarcode(video);
     } catch (err) {
         alert(`Ошибка камеры: ${err.name || err.message}`);
@@ -41,8 +54,18 @@ const stopScanner = () => {
         cameraStream = null;
     }
     video.classList.add('hidden');
-    document.getElementById('scan-controls').classList.add('hidden');
     scannerActive = false;
+    updateScanButton();
+};
+
+const updateScanButton = () => {
+    if (scannerActive) {
+        scanButton.textContent = 'Остановить сканирование';
+        scanButton.classList.add('active-scan');
+    } else {
+        scanButton.textContent = 'Запустить сканер';
+        scanButton.classList.remove('active-scan');
+    }
 };
 
 const scanBarcode = (video) => {

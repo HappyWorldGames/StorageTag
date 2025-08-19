@@ -43,6 +43,11 @@ button:disabled {
     background: #cccccc;
 }
 
+button.active-scan {
+    background: var(--dark);
+    border: 2px solid var(--primary);
+}
+
 input, textarea {
     width: 100%;
     padding: 10px;
