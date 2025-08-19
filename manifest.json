@@ -1,20 +1,23 @@
 {
   "name": "StorageTag",
   "short_name": "StorageTag",
-  "start_url": "/StorageTag/",
+  "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "theme_color": "#2E7D32",
   "background_color": "#ffffff",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "icons/icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "icons/icon-512.png",
       "type": "image/png",
       "sizes": "512x512"
     }
-  ]
+  ],
+  "splash_pages": null
 }

@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Garage Shelf Manager</title>
+    <title>StorageTag: Smart Storage Scanner</title>
     <meta name="theme-color" content="#2E7D32">
-    <link rel="manifest" href="/StorageTag/manifest.json">
+    <link rel="manifest" href="manifest.json">
     <style>
         :root {
             --primary: #2E7D32;
@@ -110,13 +110,19 @@
     </style>
 </head>
 <body>
-    <h1>Управление полками гаража</h1>
+    <h1>StorageTag: Управление местами хранения</h1>
 
     <!-- Секция сканирования -->
     <section id="scan-section">
         <h2>Сканирование штрих-кода</h2>
         <button id="start-scan">Запустить сканер</button>
-        <video id="camera-preview" class="hidden"></video>
+        <video
+            id="camera-preview"
+            class="hidden"
+            autoplay
+            playsinline
+            muted
+        ></video>
         <div class="controls hidden" id="scan-controls">
             <button id="stop-scan">Остановить сканирование</button>
         </div>
@@ -161,9 +167,15 @@
     </section>
 
     <script>
+        // Проверка HTTPS
+        if (location.protocol !== 'https:' && !location.hostname.includes('localhost')) {
+            alert("Для работы приложения требуется HTTPS! Перенаправляем...");
+            location.replace(`https://${location.host}${location.pathname}`);
+        }
+
         // Инициализация базы данных
         let db;
-        const DB_NAME = 'GarageDB';
+        const DB_NAME = 'StorageTagDB';
         const DB_VERSION = 1;
         const STORE_NAME = 'shelves';
 
@@ -235,8 +247,8 @@
                 request.onsuccess = (event) => {
                     const cursor = event.target.result;
                     if (cursor) {
-                        if (cursor.value.title.includes(query) ||
-                            cursor.value.description.includes(query)) {
+                        if (cursor.value.title.toLowerCase().includes(query.toLowerCase()) ||
+                            cursor.value.description.toLowerCase().includes(query.toLowerCase())) {
                             results.push(cursor.value);
                         }
                         cursor.continue();
@@ -249,9 +261,10 @@
             });
         };
 
-        // Работа с камерой и QR-сканированием
+        // Работа с камерой
         let scannerActive = false;
         let currentItemId = null;
+        let cameraStream = null;
 
         const startScanner = async () => {
             const video = document.getElementById('camera-preview');
@@ -259,19 +272,37 @@
             document.getElementById('scan-controls').classList.remove('hidden');
 
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-                video.srcObject = stream;
+                // Пробуем заднюю камеру, если не получится - любую доступную
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = cameraStream;
+                video.play();  // Явный запуск для Android
+
+                // Обработка для устройств, где autoplay не работает
+                video.onloadedmetadata = () => video.play();
+
                 scannerActive = true;
                 scanBarcode(video);
             } catch (err) {
-                alert('Ошибка доступа к камере: ' + err.message);
+                alert(`Ошибка камеры: ${err.name || err.message}`);
+                console.error("Camera error:", err);
+                const manualFallback = confirm("Использовать ручной ввод?");
+                if (manualFallback) document.getElementById('shelf-id-input').focus();
             }
         };
 
         const stopScanner = () => {
             const video = document.getElementById('camera-preview');
-            if (video.srcObject) {
-                video.srcObject.getTracks().forEach(track => track.stop());
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
             }
             video.classList.add('hidden');
             document.getElementById('scan-controls').classList.add('hidden');
@@ -281,29 +312,35 @@
         const scanBarcode = (video) => {
             if (!scannerActive) return;
 
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
 
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            // Используем jsQR для декодирования
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
+                // Используем jsQR для декодирования
+                if (typeof jsQR !== 'undefined') {
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
 
-            if (code) {
-                currentItemId = code.data;
-                stopScanner();
-                loadItem(currentItemId);
+                    if (code) {
+                        currentItemId = code.data;
+                        stopScanner();
+                        loadItem(currentItemId);
+                    }
+                }
             }
 
-            requestAnimationFrame(() => scanBarcode(video));
+            if (scannerActive) {
+                requestAnimationFrame(() => scanBarcode(video));
+            }
         };
 
         // Голосовой ввод
         const initVoiceRecognition = () => {
-            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            if (('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window)) {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 const recognizer = new SpeechRecognition();
                 recognizer.lang = 'ru-RU';
@@ -323,11 +360,13 @@
                     document.getElementById('voice-indicator').classList.remove('active-voice');
                 };
 
+                recognizer.onerror = (event) => {
+                    console.error('Speech recognition error', event.error);
+                };
+
                 return recognizer;
-            } else {
-                alert('Браузер не поддерживает распознавание речи');
-                return null;
             }
+            return null;
         };
 
         // Отображение данных
@@ -364,32 +403,42 @@
         };
 
         const performSearch = async (query) => {
-            const results = await searchItems(query);
-            const resultsContainer = document.getElementById('search-results');
-            resultsContainer.innerHTML = '';
+            if (!query.trim()) return;
 
-            if (results.length === 0) {
-                resultsContainer.innerHTML = '<p>Ничего не найдено</p>';
-                return;
+            try {
+                const results = await searchItems(query);
+                const resultsContainer = document.getElementById('search-results');
+                resultsContainer.innerHTML = '';
+
+                if (results.length === 0) {
+                    resultsContainer.innerHTML = '<p>Ничего не найдено</p>';
+                    return;
+                }
+
+                results.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'item-card';
+                    div.innerHTML = `
+                        <p><strong>${item.title}</strong></p>
+                        <p>Находится на полке: ${item.id}</p>
+                        <p>${item.description.substring(0, 50)}...</p>
+                    `;
+                    div.addEventListener('click', () => loadItem(item.id));
+                    resultsContainer.appendChild(div);
+                });
+            } catch (err) {
+                console.error('Search error:', err);
             }
-
-            results.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'item-card';
-                div.innerHTML = `
-                    <p><strong>${item.title}</strong></p>
-                    <p>Находится на полке: ${item.id}</p>
-                    <p>${item.description.substring(0, 50)}...</p>
-                `;
-                div.addEventListener('click', () => loadItem(item.id));
-                resultsContainer.appendChild(div);
-            });
         };
 
         // Инициализация приложения
         window.addEventListener('DOMContentLoaded', async () => {
             // Инициализация БД
-            await initDB();
+            try {
+                await initDB();
+            } catch (e) {
+                alert("Ошибка базы данных: " + e);
+            }
 
             // Инициализация голосового ввода
             const recognizer = initVoiceRecognition();
@@ -401,50 +450,76 @@
                 const id = document.getElementById('shelf-id-input').value;
                 if (id) loadItem(id);
             });
+
             document.getElementById('text-search').addEventListener('click', () => {
                 const query = document.getElementById('search-input').value;
                 if (query) performSearch(query);
             });
-            document.getElementById('voice-search').addEventListener('click', () => {
-                if (recognizer) recognizer.start();
-            });
-            document.getElementById('save-item').addEventListener('click', async () => {
-                const item = {
-                    id: currentItemId,
-                    title: document.getElementById('edit-title').value,
-                    description: document.getElementById('edit-description').value,
-                    created: new Date().toISOString(),
-                    updated: new Date().toISOString()
-                };
 
-                await saveItem(item);
-                alert('Данные сохранены!');
-                loadItem(currentItemId);
+            document.getElementById('voice-search').addEventListener('click', async () => {
+                if (!recognizer) {
+                    alert("Голосовой ввод не поддерживается в вашем браузере");
+                    return;
+                }
+
+                try {
+                    // Явный запрос разрешения для Android
+                    const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    micStream.getTracks().forEach(track => track.stop());
+                    recognizer.start();
+                } catch (err) {
+                    alert("Разрешите доступ к микрофону в настройках браузера");
+                }
             });
+
+            document.getElementById('save-item').addEventListener('click', async () => {
+                const newTitle = document.getElementById('edit-title').value.trim();
+                if (!newTitle) {
+                    alert("Введите краткое описание!");
+                    return;
+                }
+
+                try {
+                    const existingItem = await getItem(currentItemId);
+                    const item = {
+                        id: currentItemId,
+                        title: newTitle,
+                        description: document.getElementById('edit-description').value,
+                        created: existingItem?.created || new Date().toISOString(),
+                        updated: new Date().toISOString()
+                    };
+
+                    await saveItem(item);
+                    loadItem(currentItemId);
+                } catch (err) {
+                    alert("Ошибка сохранения: " + err);
+                }
+            });
+
             document.getElementById('delete-item').addEventListener('click', async () => {
                 if (confirm('Удалить эту запись?')) {
-                    await deleteItem(currentItemId);
-                    document.getElementById('item-section').classList.add('hidden');
-                    currentItemId = null;
+                    try {
+                        await deleteItem(currentItemId);
+                        document.getElementById('item-section').classList.add('hidden');
+                        currentItemId = null;
+                    } catch (err) {
+                        alert("Ошибка удаления: " + err);
+                    }
                 }
             });
         });
 
-        // Регистрация Service Worker для PWA
+        // Регистрация Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/StorageTag/sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker зарегистрирован');
-                    })
-                    .catch(error => {
-                        console.log('Ошибка регистрации ServiceWorker: ', error);
-                    });
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('SW registered:', reg))
+                    .catch(err => console.error('SW registration failed:', err));
             });
         }
     </script>
 
-    <!-- Подключаем библиотеку для QR-сканирования -->
+    <!-- Библиотека для сканирования QR -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 </body>
 </html>
