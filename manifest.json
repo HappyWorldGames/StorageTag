@@ -1,7 +1,7 @@
 {
   "name": "StorageTag",
   "short_name": "StorageTag",
-  "start_url": "/",
+  "start_url": "/StorageTag/",
   "display": "standalone",
   "theme_color": "#2E7D32",
   "background_color": "#ffffff",
