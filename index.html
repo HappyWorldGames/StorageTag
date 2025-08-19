@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garage Shelf Manager</title>
+    <meta name="theme-color" content="#2E7D32">
+    <link rel="manifest" href="/manifest.json">
+    <style>
+        :root {
+            --primary: #2E7D32;
+            --secondary: #4CAF50;
+            --dark: #1B5E20;
+            --light: #C8E6C9;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        h1, h2 {
+            color: var(--dark);
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+
+        button:disabled {
+            background: #cccccc;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        #camera-preview {
+            width: 100%;
+            max-height: 50vh;
+            object-fit: cover;
+            border-radius: 5px;
+            background: #eee;
+            margin: 10px 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .item-card {
+            border: 1px solid var(--light);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .voice-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #ccc;
+            border-radius: 50%;
+            margin-left: 10px;
+        }
+
+        .active-voice {
+            background: red;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Управление полками гаража</h1>
+
+    <!-- Секция сканирования -->
+    <section id="scan-section">
+        <h2>Сканирование штрих-кода</h2>
+        <button id="start-scan">Запустить сканер</button>
+        <video id="camera-preview" class="hidden"></video>
+        <div class="controls hidden" id="scan-controls">
+            <button id="stop-scan">Остановить сканирование</button>
+        </div>
+    </section>
+
+    <!-- Секция поиска -->
+    <section>
+        <h2>Поиск предмета</h2>
+        <input type="text" id="search-input" placeholder="Что вы ищете?">
+        <div class="controls">
+            <button id="text-search">Найти по тексту</button>
+            <button id="voice-search">
+                Голосовой поиск
+                <span class="voice-indicator" id="voice-indicator"></span>
+            </button>
+        </div>
+        <div id="search-results"></div>
+    </section>
+
+    <!-- Секция ручного ввода -->
+    <section>
+        <h2>Ручной ввод номера</h2>
+        <input type="text" id="shelf-id-input" placeholder="Введите номер полки">
+        <button id="manual-search">Показать содержимое</button>
+    </section>
+
+    <!-- Секция отображения данных -->
+    <section id="item-section" class="hidden">
+        <h2>Содержимое полки</h2>
+        <div class="item-card">
+            <p><strong>Номер:</strong> <span id="item-id"></span></p>
+            <p><strong>Описание:</strong> <span id="item-title"></span></p>
+            <p><strong>Подробности:</strong> <span id="item-description"></span></p>
+            <p><strong>Обновлено:</strong> <span id="item-updated"></span></p>
+        </div>
+
+        <h3>Редактировать</h3>
+        <input type="text" id="edit-title" placeholder="Краткое описание">
+        <textarea id="edit-description" placeholder="Подробное описание"></textarea>
+        <button id="save-item">Сохранить изменения</button>
+        <button id="delete-item" style="background: #f44336;">Удалить запись</button>
+    </section>
+
+    <script>
+        // Инициализация базы данных
+        let db;
+        const DB_NAME = 'GarageDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'shelves';
+
+        const initDB = () => {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+                request.onupgradeneeded = (event) => {
+                    db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                        store.createIndex('title', 'title', { unique: false });
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    db = event.target.result;
+                    resolve(db);
+                };
+
+                request.onerror = (event) => {
+                    reject('Ошибка IndexedDB: ' + event.target.errorCode);
+                };
+            });
+        };
+
+        // Работа с данными
+        const getItem = (id) => {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.get(id);
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        };
+
+        const saveItem = (item) => {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.put(item);
+
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        };
+
+        const deleteItem = (id) => {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readwrite');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.delete(id);
+
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        };
+
+        const searchItems = (query) => {
+            return new Promise((resolve, reject) => {
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const index = store.index('title');
+                const request = index.openCursor();
+                const results = [];
+
+                request.onsuccess = (event) => {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        if (cursor.value.title.includes(query) ||
+                            cursor.value.description.includes(query)) {
+                            results.push(cursor.value);
+                        }
+                        cursor.continue();
+                    } else {
+                        resolve(results);
+                    }
+                };
+
+                request.onerror = () => reject(request.error);
+            });
+        };
+
+        // Работа с камерой и QR-сканированием
+        let scannerActive = false;
+        let currentItemId = null;
+
+        const startScanner = async () => {
+            const video = document.getElementById('camera-preview');
+            video.classList.remove('hidden');
+            document.getElementById('scan-controls').classList.remove('hidden');
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = stream;
+                scannerActive = true;
+                scanBarcode(video);
+            } catch (err) {
+                alert('Ошибка доступа к камере: ' + err.message);
+            }
+        };
+
+        const stopScanner = () => {
+            const video = document.getElementById('camera-preview');
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+            video.classList.add('hidden');
+            document.getElementById('scan-controls').classList.add('hidden');
+            scannerActive = false;
+        };
+
+        const scanBarcode = (video) => {
+            if (!scannerActive) return;
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            // Используем jsQR для декодирования
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+            if (code) {
+                currentItemId = code.data;
+                stopScanner();
+                loadItem(currentItemId);
+            }
+
+            requestAnimationFrame(() => scanBarcode(video));
+        };
+
+        // Голосовой ввод
+        const initVoiceRecognition = () => {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                const recognizer = new SpeechRecognition();
+                recognizer.lang = 'ru-RU';
+                recognizer.continuous = false;
+
+                recognizer.onstart = () => {
+                    document.getElementById('voice-indicator').classList.add('active-voice');
+                };
+
+                recognizer.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    document.getElementById('search-input').value = transcript;
+                    performSearch(transcript);
+                };
+
+                recognizer.onend = () => {
+                    document.getElementById('voice-indicator').classList.remove('active-voice');
+                };
+
+                return recognizer;
+            } else {
+                alert('Браузер не поддерживает распознавание речи');
+                return null;
+            }
+        };
+
+        // Отображение данных
+        const loadItem = async (id) => {
+            try {
+                const item = await getItem(id);
+                if (item) {
+                    document.getElementById('item-id').textContent = item.id;
+                    document.getElementById('item-title').textContent = item.title;
+                    document.getElementById('item-description').textContent = item.description;
+                    document.getElementById('item-updated').textContent = new Date(item.updated).toLocaleString();
+
+                    document.getElementById('edit-title').value = item.title;
+                    document.getElementById('edit-description').value = item.description;
+
+                    document.getElementById('item-section').classList.remove('hidden');
+                    currentItemId = item.id;
+                } else {
+                    // Создаем новый элемент если не найден
+                    document.getElementById('item-id').textContent = id;
+                    document.getElementById('item-title').textContent = '';
+                    document.getElementById('item-description').textContent = '';
+                    document.getElementById('item-updated').textContent = 'Новая запись';
+
+                    document.getElementById('edit-title').value = '';
+                    document.getElementById('edit-description').value = '';
+
+                    document.getElementById('item-section').classList.remove('hidden');
+                    currentItemId = id;
+                }
+            } catch (err) {
+                alert('Ошибка загрузки: ' + err);
+            }
+        };
+
+        const performSearch = async (query) => {
+            const results = await searchItems(query);
+            const resultsContainer = document.getElementById('search-results');
+            resultsContainer.innerHTML = '';
+
+            if (results.length === 0) {
+                resultsContainer.innerHTML = '<p>Ничего не найдено</p>';
+                return;
+            }
+
+            results.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'item-card';
+                div.innerHTML = `
+                    <p><strong>${item.title}</strong></p>
+                    <p>Находится на полке: ${item.id}</p>
+                    <p>${item.description.substring(0, 50)}...</p>
+                `;
+                div.addEventListener('click', () => loadItem(item.id));
+                resultsContainer.appendChild(div);
+            });
+        };
+
+        // Инициализация приложения
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Инициализация БД
+            await initDB();
+
+            // Инициализация голосового ввода
+            const recognizer = initVoiceRecognition();
+
+            // Обработчики событий
+            document.getElementById('start-scan').addEventListener('click', startScanner);
+            document.getElementById('stop-scan').addEventListener('click', stopScanner);
+            document.getElementById('manual-search').addEventListener('click', () => {
+                const id = document.getElementById('shelf-id-input').value;
+                if (id) loadItem(id);
+            });
+            document.getElementById('text-search').addEventListener('click', () => {
+                const query = document.getElementById('search-input').value;
+                if (query) performSearch(query);
+            });
+            document.getElementById('voice-search').addEventListener('click', () => {
+                if (recognizer) recognizer.start();
+            });
+            document.getElementById('save-item').addEventListener('click', async () => {
+                const item = {
+                    id: currentItemId,
+                    title: document.getElementById('edit-title').value,
+                    description: document.getElementById('edit-description').value,
+                    created: new Date().toISOString(),
+                    updated: new Date().toISOString()
+                };
+
+                await saveItem(item);
+                alert('Данные сохранены!');
+                loadItem(currentItemId);
+            });
+            document.getElementById('delete-item').addEventListener('click', async () => {
+                if (confirm('Удалить эту запись?')) {
+                    await deleteItem(currentItemId);
+                    document.getElementById('item-section').classList.add('hidden');
+                    currentItemId = null;
+                }
+            });
+        });
+
+        // Регистрация Service Worker для PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker зарегистрирован');
+                    })
+                    .catch(error => {
+                        console.log('Ошибка регистрации ServiceWorker: ', error);
+                    });
+            });
+        }
+    </script>
+
+    <!-- Подключаем библиотеку для QR-сканирования -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+</body>
+</html>
