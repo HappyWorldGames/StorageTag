@@ -56,8 +56,20 @@
         </div>
 
         <h3>Редактировать</h3>
-        <input type="text" id="edit-title" placeholder="Краткое описание">
-        <textarea id="edit-description" placeholder="Подробное описание"></textarea>
+        <div style="display: flex;">
+            <button id="voice-input-title">
+                🎙️
+                <span class="voice-indicator" id="voice-indicator-title"></span>
+            </button>
+            <input type="text" id="edit-title" placeholder="Краткое описание">
+        </div>
+        <div style="display: flex;">
+            <button id="voice-input-description">
+                🎙️
+                <span class="voice-indicator" id="voice-indicator-description"></span>
+            </button>
+            <textarea id="edit-description" placeholder="Подробное описание"></textarea>
+        </div>
         <button id="save-item">Сохранить изменения</button>
         <button id="delete-item" style="background: #f44336;">Удалить запись</button>
     </section>

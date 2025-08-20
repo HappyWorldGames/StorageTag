@@ -92,7 +92,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (query) performSearch(query);
     });
 
-    document.getElementById('voice-search').addEventListener('click', startVoiceSearch);
+    document.getElementById('voice-search').addEventListener('click', () => { startVoiceSearch('search') });
+    document.getElementById('voice-input-title').addEventListener('click', () => { startVoiceSearch('title') });
+    document.getElementById('voice-input-description').addEventListener('click', () => { startVoiceSearch('description') });
 
     document.getElementById('save-item').addEventListener('click', async () => {
         const newTitle = document.getElementById('edit-title').value.trim();
