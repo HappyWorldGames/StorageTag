@@ -1,6 +1,42 @@
 // Глобальные переменные
 let currentItemId = null;
 
+// Уведомления
+const showNotification = (message, type = 'info') => {
+    // Создаем уведомление в верхней части экрана
+    const notification = document.createElement('div');
+    notification.textContent = message;
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.left = '50%';
+    notification.style.transform = 'translateX(-50%)';
+    notification.style.padding = '10px 20px';
+    notification.style.borderRadius = '5px';
+    notification.style.zIndex = '1000';
+    notification.style.maxWidth = '80%';
+    notification.style.textAlign = 'center';
+
+    if (type === 'success') {
+        notification.style.background = 'var(--success)';
+        notification.style.color = 'var(--primary)';
+    } else if (type === 'error') {
+        notification.style.background = 'var(--error)';
+        notification.style.color = 'white';
+    } else {
+        notification.style.background = '#bbdefb';
+        notification.style.color = '#0d47a1';
+    }
+
+    document.body.appendChild(notification);
+
+    // Автоматически скрываем через 3 секунды
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transition = 'opacity 0.5s';
+        setTimeout(() => document.body.removeChild(notification), 500);
+    }, 3000);
+};
+
 // Отображение данных
 const loadItem = async (id) => {
     try {

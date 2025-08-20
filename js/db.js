@@ -13,6 +13,7 @@ const initDB = () => {
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
                 store.createIndex('title', 'title', { unique: false });
+                store.createIndex('description', 'description', { unique: false });
             }
         };
 

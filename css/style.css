@@ -3,6 +3,8 @@
     --secondary: #4CAF50;
     --dark: #1B5E20;
     --light: #C8E6C9;
+    --error: #f44336;
+    --warning: #ff9800;
 }
 
 * {
